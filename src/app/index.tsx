@@ -1,9 +1,5 @@
-import { Text, View } from 'react-native';
+import { Href, Redirect } from 'expo-router';
 
 export default function Index() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' }}>
-      <Text style={{ fontSize: 20, fontWeight: 'bold' }}>Kavarna u sousedu</Text>
-    </View>
-  );
+  return <Redirect href={'/(tabs)' as Href} />;
 }
