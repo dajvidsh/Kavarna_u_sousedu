@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Colors } from '@/constants/colors';
+import { AuthProvider } from '@/context/AuthContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -13,7 +14,7 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <>
+    <AuthProvider>
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
@@ -23,7 +24,11 @@ export default function RootLayout() {
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="login" options={{ presentation: 'card' }} />
+        <Stack.Screen name="register" options={{ presentation: 'card' }} />
+        <Stack.Screen name="scanner" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
       </Stack>
-    </>
+    </AuthProvider>
   );
 }

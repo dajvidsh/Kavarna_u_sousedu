@@ -1,5 +1,6 @@
 import { Colors } from '@/constants/colors';
 import { USER_DATA } from '@/data/mockData';
+import { useAuth } from '@/context/AuthContext';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -19,9 +20,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 type LanguageOption = 'Čeština' | 'Українська' | 'English';
 
 export default function ProfileScreen() {
-  // User contact details state
-  const [userName, setUserName] = useState(USER_DATA.name);
-  const [userEmail, setUserEmail] = useState(USER_DATA.email);
+  const { user, userProfile, logout, updateName } = useAuth();
+
+  // User contact details (derived directly from auth state)
+  const userName = user
+    ? userProfile?.name || user.displayName || 'Věrný zákazník'
+    : USER_DATA.name;
+  const userEmail = user ? user.email || '' : USER_DATA.email;
 
   // Settings & preference states
   const [language, setLanguage] = useState<LanguageOption>('Čeština');
@@ -38,13 +43,14 @@ export default function ProfileScreen() {
   const [tempName, setTempName] = useState(userName);
   const [tempEmail, setTempEmail] = useState(userEmail);
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     if (!tempName.trim()) {
       Alert.alert('Chyba', 'Jméno nesmí být prázdné.');
       return;
     }
-    setUserName(tempName);
-    setUserEmail(tempEmail);
+    if (user) {
+      await updateName(tempName.trim());
+    }
     setEditProfileVisible(false);
   };
 
@@ -57,9 +63,14 @@ export default function ProfileScreen() {
         {
           text: 'Odhlásit se',
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Odhlášeno', 'Byli jste úspěšně odhlášeni.');
-            router.back();
+          onPress: async () => {
+            try {
+              await logout();
+              Alert.alert('Odhlášeno', 'Byli jste úspěšně odhlášeni.');
+              router.back();
+            } catch (err: any) {
+              Alert.alert('Chyba', err?.message || 'Chyba při odhlašování.');
+            }
           },
         },
       ]
@@ -82,24 +93,44 @@ export default function ProfileScreen() {
         </View>
 
         {/* User Card */}
-        <View style={styles.userCard}>
-          <View style={styles.avatar}>
-            <Feather name="user" size={27} color="#FFF" />
+        {user ? (
+          <View style={styles.userCard}>
+            <View style={styles.avatar}>
+              <Feather name="user" size={27} color="#FFF" />
+            </View>
+            <View style={styles.userCopy}>
+              <Text style={styles.userName}>{userName}</Text>
+              <Text style={styles.email}>{userEmail}</Text>
+              <Pressable
+                onPress={() => {
+                  setTempName(userName);
+                  setTempEmail(userEmail);
+                  setEditProfileVisible(true);
+                }}
+              >
+                <Text style={styles.link}>Upravit kontaktní údaje →</Text>
+              </Pressable>
+            </View>
           </View>
-          <View style={styles.userCopy}>
-            <Text style={styles.userName}>{userName}</Text>
-            <Text style={styles.email}>{userEmail}</Text>
+        ) : (
+          <View style={[styles.userCard, { flexDirection: 'column', alignItems: 'stretch', gap: 12 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={[styles.avatar, { backgroundColor: Colors.textMuted }]}>
+                <Feather name="user-x" size={27} color="#FFF" />
+              </View>
+              <View style={styles.userCopy}>
+                <Text style={styles.userName}>Host (Nepřihlášen)</Text>
+                <Text style={styles.email}>Přihlaste se ke svému účtu kavárny</Text>
+              </View>
+            </View>
             <Pressable
-              onPress={() => {
-                setTempName(userName);
-                setTempEmail(userEmail);
-                setEditProfileVisible(true);
-              }}
+              style={[styles.logout, { marginTop: 4, backgroundColor: Colors.primaryDark }]}
+              onPress={() => router.push('/login')}
             >
-              <Text style={styles.link}>Upravit kontaktní údaje →</Text>
+              <Text style={styles.logoutText}>Přihlásit se / Registrace</Text>
             </Pressable>
           </View>
-        </View>
+        )}
 
         {/* Preferences Section */}
         <View style={styles.settingsCard}>
@@ -155,9 +186,11 @@ export default function ProfileScreen() {
         </View>
 
         {/* Logout Button */}
-        <Pressable style={styles.logout} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Odhlásit se</Text>
-        </Pressable>
+        {user ? (
+          <Pressable style={styles.logout} onPress={handleLogout}>
+            <Text style={styles.logoutText}>Odhlásit se</Text>
+          </Pressable>
+        ) : null}
 
         <Text style={styles.version}>Version 1.0</Text>
       </ScrollView>
