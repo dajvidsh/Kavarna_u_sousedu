@@ -1,3 +1,13 @@
+/* Konflikt 
+
+import AuthScreen from '@/components/AuthScreen';
+
+export default function LoginScreen() {
+    return <AuthScreen mode="login" />;
+}
+
+*/
+
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
