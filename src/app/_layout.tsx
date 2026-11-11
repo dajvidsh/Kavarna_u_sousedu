@@ -1,10 +1,10 @@
-import '@/global.css';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { Colors } from '@/constants/colors';
-import { AuthProvider } from '@/context/AuthContext';
+import { Colors } from "@/constants/colors";
+import { AuthProvider } from "@/context/AuthContext";
+import "@/global.css";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -23,10 +23,9 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="login" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="register" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="scanner" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="profile" options={{ presentation: "modal" }} />
+        <Stack.Screen name="login" options={{ presentation: "modal" }} />
+        <Stack.Screen name="scanner" options={{ presentation: "modal" }} />
         <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
       </Stack>
     </AuthProvider>
