@@ -2,7 +2,8 @@ import { Colors } from '@/constants/colors';
 import { useAuth } from '@/context/AuthContext';
 import { firebaseConfigError } from '@/services/firebase';
 import { getAuthErrorMessage } from '@/utils/authErrors';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -19,7 +20,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
-  const { login, register } = useAuth();
+  const { login, register, loginWithGoogleToken, loginWithGooglePopup } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,6 +38,56 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
       } else {
         await login(email, password);
       }
+      router.back();
+    } catch (authError) {
+      setError(
+        authError instanceof Error && authError.message === firebaseConfigError
+          ? firebaseConfigError
+          : getAuthErrorMessage(authError)
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setSubmitting(true);
+
+    try {
+      if (Platform.OS === 'web') {
+        await loginWithGooglePopup();
+      } else {
+        const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+        const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+
+        if (!webClientId || webClientId.startsWith('your_')) {
+          throw new Error('Google přihlášení není nakonfigurováno. Doplňte OAuth client ID do .env.');
+        }
+        if (Platform.OS === 'ios' && !iosClientId) {
+          throw new Error('Google přihlášení pro iOS není nakonfigurováno. Doplňte iOS client ID do .env.');
+        }
+
+        GoogleSignin.configure({
+          webClientId,
+          ...(Platform.OS === 'ios' ? { iosClientId } : {}),
+        });
+
+        if (Platform.OS === 'android') {
+          await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        }
+
+        const response = await GoogleSignin.signIn();
+        if (response.type === 'cancelled') return;
+
+        const idToken = response.data.idToken;
+        if (!idToken) {
+          throw new Error('Google nevrátil ověřovací token. Zkontrolujte nastavení OAuth client ID.');
+        }
+
+        await loginWithGoogleToken(idToken);
+      }
+
       router.back();
     } catch (authError) {
       setError(
@@ -134,6 +185,31 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
               )}
             </Pressable>
 
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>nebo</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              disabled={submitting}
+              onPress={handleGoogleSignIn}
+              style={({ pressed }) => [
+                styles.googleButton,
+                (pressed || submitting) && styles.buttonPressed,
+              ]}
+            >
+              {submitting ? (
+                <ActivityIndicator color={Colors.primaryDark} />
+              ) : (
+                <>
+                  <MaterialCommunityIcons name="google" size={20} color="#4285F4" />
+                  <Text style={styles.googleButtonText}>Pokračovat přes Google</Text>
+                </>
+              )}
+            </Pressable>
+
             <Pressable
               accessibilityRole="button"
               onPress={() => router.replace(isRegister ? '/login' : '/register')}
@@ -201,6 +277,22 @@ const styles = StyleSheet.create({
   },
   submitButtonText: { color: '#FFF', fontSize: 14, fontWeight: '800' },
   buttonPressed: { opacity: 0.8 },
+  divider: { alignItems: 'center', flexDirection: 'row', gap: 12, marginTop: 20 },
+  dividerLine: { backgroundColor: Colors.border, flex: 1, height: 1 },
+  dividerText: { color: Colors.textMuted, fontSize: 12 },
+  googleButton: {
+    alignItems: 'center',
+    backgroundColor: Colors.cardBg,
+    borderColor: Colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+    marginTop: 16,
+    minHeight: 50,
+  },
+  googleButtonText: { color: Colors.textPrimary, fontSize: 14, fontWeight: '700' },
   switchButton: { alignItems: 'center', paddingVertical: 18 },
   switchText: { color: Colors.accentBrown, fontSize: 13, fontWeight: '700', textAlign: 'center' },
 });
