@@ -2,8 +2,9 @@ import { Colors } from '@/constants/colors';
 import { USER_DATA } from '@/data/mockData';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 function generateQRData(seedString: string) {
@@ -37,12 +38,65 @@ function generateQRData(seedString: string) {
 }
 
 export default function CardScreen() {
+  const { user, loading } = useAuth();
   const [seed, setSeed] = useState(USER_DATA.cardNumber);
   const qrPattern = useMemo(() => generateQRData(seed), [seed]);
 
   const handleRegenerateQR = () => {
     setSeed(`${USER_DATA.cardNumber}-${Math.random().toString(36).substring(2, 8)}`);
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.stateContent}>
+          <ActivityIndicator color={Colors.primaryDark} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.header}>
+            <View style={styles.headerTitleContainer}>
+              <Feather name="coffee" size={22} color={Colors.accentBrown} style={styles.headerIcon} />
+              <Text style={styles.headerTitle}>Moje karta</Text>
+            </View>
+          </View>
+
+          <View style={styles.guestCard}>
+            <View style={styles.guestIcon}>
+              <Feather name="credit-card" size={30} color={Colors.primaryDark} />
+              <View style={styles.lockBadge}>
+                <Feather name="lock" size={13} color="#FFF" />
+              </View>
+            </View>
+            <Text style={styles.guestTitle}>Vaše věrnostní karta čeká</Text>
+            <Text style={styles.guestDescription}>
+              Přihlaste se nebo si vytvořte účet, abyste měli svou kartu i nasbírané body vždy po ruce.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push('/login')}
+              style={({ pressed }) => [styles.authButton, pressed && styles.buttonPressed]}
+            >
+              <Text style={styles.authButtonText}>Přihlásit se</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push('/register')}
+              style={({ pressed }) => [styles.registerButton, pressed && styles.buttonPressed]}
+            >
+              <Text style={styles.registerButtonText}>Vytvořit účet</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -105,6 +159,7 @@ export default function CardScreen() {
 const styles = StyleSheet.create({
   safeArea: { backgroundColor: Colors.background, flex: 1 },
   content: { padding: 20 },
+  stateContent: { alignItems: 'center', flex: 1, justifyContent: 'center' },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -114,6 +169,69 @@ const styles = StyleSheet.create({
   headerTitleContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerIcon: { marginRight: 2 },
   headerTitle: { color: Colors.textPrimary, fontFamily: 'serif', fontSize: 24, fontWeight: '700' },
+  guestCard: {
+    alignItems: 'center',
+    backgroundColor: Colors.cardBg,
+    borderColor: Colors.border,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginTop: 30,
+    padding: 24,
+  },
+  guestIcon: {
+    alignItems: 'center',
+    backgroundColor: Colors.secondaryBg,
+    borderRadius: 34,
+    height: 68,
+    justifyContent: 'center',
+    marginBottom: 20,
+    width: 68,
+  },
+  lockBadge: {
+    alignItems: 'center',
+    backgroundColor: Colors.accentBrown,
+    borderColor: Colors.cardBg,
+    borderRadius: 11,
+    borderWidth: 2,
+    bottom: -2,
+    height: 24,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: -5,
+    width: 24,
+  },
+  guestTitle: {
+    color: Colors.textPrimary,
+    fontFamily: 'serif',
+    fontSize: 21,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  guestDescription: {
+    color: Colors.textMuted,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  authButton: {
+    alignItems: 'center',
+    backgroundColor: Colors.primaryDark,
+    borderRadius: 999,
+    marginTop: 24,
+    paddingVertical: 14,
+    width: '100%',
+  },
+  authButtonText: { color: '#FFF', fontSize: 14, fontWeight: '800' },
+  registerButton: {
+    alignItems: 'center',
+    backgroundColor: Colors.secondaryBg,
+    borderRadius: 999,
+    marginTop: 10,
+    paddingVertical: 14,
+    width: '100%',
+  },
+  registerButtonText: { color: Colors.primaryDark, fontSize: 14, fontWeight: '800' },
   maximizeButton: {
     alignItems: 'center',
     backgroundColor: Colors.secondaryBg,
