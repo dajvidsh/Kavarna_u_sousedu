@@ -12,7 +12,7 @@ import {
   signInWithPopup,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db } from '@/services/firebase';
+import { auth, db, firebaseConfigError } from '@/services/firebase';
 import { USER_DATA, UserProfile } from '@/data/mockData';
 
 interface AuthContextType {
@@ -49,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchOrInitUserProfile = async (firebaseUser: User, fallbackName?: string) => {
     try {
+      if (!db) throw new Error(firebaseConfigError);
       const userDocRef = doc(db, 'users', firebaseUser.uid);
       const userSnap = await getDoc(userDocRef);
 
@@ -106,12 +107,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, pass: string) => {
-    if (!auth) throw new Error('Firebase Auth není inicializováno.');
+    if (!auth) throw new Error(firebaseConfigError);
     await signInWithEmailAndPassword(auth, email.trim(), pass);
   };
 
   const register = async (email: string, pass: string, name?: string) => {
-    if (!auth) throw new Error('Firebase Auth není inicializováno.');
+    if (!auth) throw new Error(firebaseConfigError);
     pendingName.current = name?.trim() || undefined;
 
     try {
@@ -126,13 +127,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginWithGoogleToken = async (idToken: string) => {
-    if (!auth) throw new Error('Firebase Auth není inicializováno.');
+    if (!auth) throw new Error(firebaseConfigError);
     const credential = GoogleAuthProvider.credential(idToken);
     await signInWithCredential(auth, credential);
   };
 
   const loginWithGooglePopup = async () => {
-    if (!auth) throw new Error('Firebase Auth není inicializováno.');
+    if (!auth) throw new Error(firebaseConfigError);
     const provider = new GoogleAuthProvider();
     await signInWithPopup(auth, provider);
   };
@@ -145,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetPassword = async (email: string) => {
-    if (!auth) throw new Error('Firebase Auth není inicializováno.');
+    if (!auth) throw new Error(firebaseConfigError);
     await sendPasswordResetEmail(auth, email.trim());
   };
 
@@ -153,8 +154,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     try {
       await updateProfile(user, { displayName: newName.trim() });
-      const userDocRef = doc(db, 'users', user.uid);
-      await setDoc(userDocRef, { name: newName.trim() }, { merge: true });
+      if (db) {
+        const userDocRef = doc(db, 'users', user.uid);
+        await setDoc(userDocRef, { name: newName.trim() }, { merge: true });
+      }
     } catch {
       // ignore
     }

@@ -16,24 +16,47 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Inicializace aplikace (ošetření pro Fast Refresh / Hot Reload)
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+const requiredConfigValues = [
+  firebaseConfig.apiKey,
+  firebaseConfig.authDomain,
+  firebaseConfig.projectId,
+  firebaseConfig.messagingSenderId,
+  firebaseConfig.appId,
+];
+const hasFirebaseConfig = requiredConfigValues.every(
+  (value) => value?.trim() && !value.startsWith('your_')
+);
 
-// Inicializace Firebase Authentication s trvalým uložením do paměti telefonu (AsyncStorage)
-let auth: ReturnType<typeof getAuth>;
-if (Platform.OS !== 'web') {
+export const firebaseConfigError =
+  'Firebase není nakonfigurováno. Zkopírujte .env.example do .env a doplňte údaje svého Firebase projektu.';
+
+let app: ReturnType<typeof initializeApp> | null = null;
+let auth: ReturnType<typeof getAuth> | null = null;
+let db: ReturnType<typeof getFirestore> | null = null;
+
+if (hasFirebaseConfig) {
   try {
-    auth = initializeAuth(app, {
-      persistence: getReactNativePersistence(AsyncStorage),
-    });
-  } catch {
-    auth = getAuth(app);
-  }
-} else {
-  auth = getAuth(app);
-}
+    // Reuse an existing app during Fast Refresh.
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Inicializace Firestore databáze
-const db = getFirestore(app);
+    if (Platform.OS !== 'web') {
+      try {
+        auth = initializeAuth(app, {
+          persistence: getReactNativePersistence(AsyncStorage),
+        });
+      } catch {
+        auth = getAuth(app);
+      }
+    } else {
+      auth = getAuth(app);
+    }
+
+    db = getFirestore(app);
+  } catch {
+    app = null;
+    auth = null;
+    db = null;
+  }
+}
 
 export { app, auth, db };
