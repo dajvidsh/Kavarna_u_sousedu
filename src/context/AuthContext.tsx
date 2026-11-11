@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import {
   User,
   onAuthStateChanged,
@@ -7,6 +7,9 @@ import {
   signOut,
   sendPasswordResetEmail,
   updateProfile,
+  GoogleAuthProvider,
+  signInWithCredential,
+  signInWithPopup,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/services/firebase';
@@ -18,6 +21,8 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, pass: string) => Promise<void>;
   register: (email: string, pass: string, name?: string) => Promise<void>;
+  loginWithGoogleToken: (idToken: string) => Promise<void>;
+  loginWithGooglePopup: () => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateName: (newName: string) => Promise<void>;
@@ -29,6 +34,8 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   login: async () => {},
   register: async () => {},
+  loginWithGoogleToken: async () => {},
+  loginWithGooglePopup: async () => {},
   logout: async () => {},
   resetPassword: async () => {},
   updateName: async () => {},
@@ -38,8 +45,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(Boolean(auth));
+  const pendingName = useRef<string | undefined>(undefined);
 
-  // Načtení profilu z Firestore nebo vytvoření nového
   const fetchOrInitUserProfile = async (firebaseUser: User, fallbackName?: string) => {
     try {
       const userDocRef = doc(db, 'users', firebaseUser.uid);
@@ -48,12 +55,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (userSnap.exists()) {
         setUserProfile(userSnap.data() as UserProfile);
       } else {
-        // Vytvoření nového profilu ve Firestore
         const newProfile: UserProfile = {
           name: fallbackName || firebaseUser.displayName || 'Věrný zákazník',
           email: firebaseUser.email || '',
           cardNumber: `00${Math.floor(100000 + Math.random() * 900000)}/28`,
-          currentPoints: 1, // Uvítací bod
+          currentPoints: 1,
           totalPoints: 10,
           lastPurchase: {
             date: 'Dnes',
@@ -66,7 +72,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserProfile(newProfile);
       }
     } catch {
-      // Fallback v případě, že Firestore není dostupný
       setUserProfile({
         name: fallbackName || firebaseUser.displayName || 'Věrný zákazník',
         email: firebaseUser.email || '',
@@ -89,7 +94,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        await fetchOrInitUserProfile(currentUser);
+        await fetchOrInitUserProfile(currentUser, pendingName.current);
+        pendingName.current = undefined;
       } else {
         setUserProfile(null);
       }
@@ -101,21 +107,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, pass: string) => {
     if (!auth) throw new Error('Firebase Auth není inicializováno.');
-    const userCredential = await signInWithEmailAndPassword(auth, email.trim(), pass);
-    await fetchOrInitUserProfile(userCredential.user);
+    await signInWithEmailAndPassword(auth, email.trim(), pass);
   };
 
   const register = async (email: string, pass: string, name?: string) => {
     if (!auth) throw new Error('Firebase Auth není inicializováno.');
-    const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), pass);
-    if (name?.trim()) {
-      try {
-        await updateProfile(userCredential.user, { displayName: name.trim() });
-      } catch {
-        // Ignorovat chybu updateProfile
+    pendingName.current = name?.trim() || undefined;
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+      if (pendingName.current) {
+        await updateProfile(userCredential.user, { displayName: pendingName.current }).catch(() => {});
       }
+    } catch (error) {
+      pendingName.current = undefined;
+      throw error;
     }
-    await fetchOrInitUserProfile(userCredential.user, name?.trim());
+  };
+
+  const loginWithGoogleToken = async (idToken: string) => {
+    if (!auth) throw new Error('Firebase Auth není inicializováno.');
+    const credential = GoogleAuthProvider.credential(idToken);
+    await signInWithCredential(auth, credential);
+  };
+
+  const loginWithGooglePopup = async () => {
+    if (!auth) throw new Error('Firebase Auth není inicializováno.');
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
   };
 
   const logout = async () => {
@@ -150,6 +169,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         login,
         register,
+        loginWithGoogleToken,
+        loginWithGooglePopup,
         logout,
         resetPassword,
         updateName,

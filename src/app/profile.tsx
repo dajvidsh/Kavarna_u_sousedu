@@ -77,6 +77,14 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleOpenAuth = () => {
+    // Zavřeme modální okno profilu, aby se uživatel mohl přímo přihlásit bez varování
+    if (router.canDismiss()) {
+      router.dismiss();
+    }
+    router.push('/login');
+  };
+
   const notificationSubtitle = `Body ${pointsNotify ? 'zapnuté' : 'vypnuté'} · akce ${promosNotify ? 'zapnuté' : 'vypnuté'}`;
   const languageSubtitle = `${language} · možnosti Українська / English`;
 
@@ -125,7 +133,7 @@ export default function ProfileScreen() {
             </View>
             <Pressable
               style={[styles.logout, { marginTop: 4, backgroundColor: Colors.primaryDark }]}
-              onPress={() => router.push('/login')}
+              onPress={handleOpenAuth}
             >
               <Text style={styles.logoutText}>Přihlásit se / Registrace</Text>
             </Pressable>

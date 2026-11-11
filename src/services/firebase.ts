@@ -3,6 +3,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 // Firebase konfigurace načtená z proměnných prostředí (.env soubor)
 // Expo automaticky zpřístupňuje všechny proměnné s předponou EXPO_PUBLIC_
@@ -20,11 +21,15 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 // Inicializace Firebase Authentication s trvalým uložením do paměti telefonu (AsyncStorage)
 let auth: ReturnType<typeof getAuth>;
-try {
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-  });
-} catch {
+if (Platform.OS !== 'web') {
+  try {
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
+  } catch {
+    auth = getAuth(app);
+  }
+} else {
   auth = getAuth(app);
 }
 
